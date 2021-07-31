@@ -13,11 +13,6 @@ import Prelude hiding (readFile)
 
 #define TEST test (Loc (__FILE__, __LINE__))
 
-addNewline :: IO () -> IO ()
-addNewline f = do
-  f
-  putChar '\n'
-
 tests :: IO ()
 tests = do
   TEST (f0 [1, 0, 0, 0, 99]) [2, 0, 0, 0, 99]
@@ -80,3 +75,8 @@ main = do
     [ (solve2, path2),
       (solve5, path5)
     ]
+  where
+    addNewline :: IO () -> IO ()
+    addNewline f = do
+      f
+      putChar '\n'
