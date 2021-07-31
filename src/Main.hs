@@ -2,7 +2,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 import Control.Applicative (liftA2)
-import Data.Either (rights)
+import Control.Exception (assert)
+import Data.Either (lefts, rights)
 import Data.Text (Text, splitOn)
 import Data.Text.IO (readFile)
 import Data.Text.Read (decimal, signed)
@@ -35,12 +36,9 @@ tests = do
     f0 = getProgram . run . (\xs -> Vm xs [] [] [])
     f1 = head . getOutput . run . (\(xs, input) -> Vm xs [] input [])
 
-intoProgram :: Text -> [Int]
-intoProgram = rights . map (fmap fst . signed decimal) . splitOn ","
-
 -- NOTE: See `https://adventofcode.com/2019/day/2`.
-solve2 :: Text -> IO ()
-solve2 x = do
+solve2 :: [Int] -> IO ()
+solve2 xs = do
   TEST (head $ getProgram $ run (Vm xs [(1, 12), (2, 2)] [] [])) 9706670
   TEST
     ( fst $
@@ -55,23 +53,25 @@ solve2 x = do
               (liftA2 (,) [0 .. 99] [0 .. 99])
     )
     2552
-  where
-    xs = intoProgram x
 
 -- NOTE: See `https://adventofcode.com/2019/day/5`.
-solve5 :: Text -> IO ()
-solve5 x = do
+solve5 :: [Int] -> IO ()
+solve5 xs = do
   TEST (getOutput $ run $ Vm xs [] [1] []) [5821753, 0, 0, 0, 0, 0, 0, 0, 0, 0]
   TEST (getOutput $ run $ Vm xs [] [5] []) [11956381]
+
+intoProgram :: Text -> [Int]
+intoProgram x = assert (null $ lefts xs) $ rights xs
   where
-    xs = intoProgram x
+    xs :: [Either String Int]
+    xs = map (fmap fst . signed decimal) $ splitOn "," x
 
 main :: IO ()
 main = do
   addNewline tests
   [path2, path5] <- getArgs
   mapM_
-    (\(f, x) -> addNewline . f =<< readFile x)
+    (\(f, x) -> addNewline . f . intoProgram =<< readFile x)
     [ (solve2, path2),
       (solve5, path5)
     ]
