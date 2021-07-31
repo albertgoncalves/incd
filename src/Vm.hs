@@ -57,6 +57,36 @@ loop array input output i = do
     4 -> do
       val <- readVal array m0 (i + 1)
       loop array input (val : output) (i + 2)
+    5 -> do
+      val0 <- readVal array m0 (i + 1)
+      val1 <- readVal array m1 (i + 2)
+      if val0 /= 0
+        then loop array input output val1
+        else loop array input output (i + 3)
+    6 -> do
+      val0 <- readVal array m0 (i + 1)
+      val1 <- readVal array m1 (i + 2)
+      if val0 == 0
+        then loop array input output val1
+        else loop array input output (i + 3)
+    7 -> do
+      val0 <- readVal array m0 (i + 1)
+      val1 <- readVal array m1 (i + 2)
+      dst <- readDst array m2 (i + 3)
+      writeArray array dst $
+        if val0 < val1
+          then 1
+          else 0
+      loop array input output (i + 4)
+    8 -> do
+      val0 <- readVal array m0 (i + 1)
+      val1 <- readVal array m1 (i + 2)
+      dst <- readDst array m2 (i + 3)
+      writeArray array dst $
+        if val0 == val1
+          then 1
+          else 0
+      loop array input output (i + 4)
     99 -> return output
     _ -> undefined
 
