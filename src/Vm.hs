@@ -18,7 +18,6 @@ data VmState = VmState
 
 data Vm = Vm
   { getProgram :: [Int],
-    getPatches :: [(Int, Int)],
     getState :: VmState
   }
 
@@ -99,14 +98,21 @@ loop array (VmState _ i input output) = do
     99 -> return $ VmState False i input output
     _ -> undefined
 
+toArray :: (MArray a Int m) => [Int] -> m (a Int Int)
+toArray xs = newListArray (0, length xs - 1) xs
+
+patch :: [Int] -> [(Int, Int)] -> [Int]
+patch program patches = runST $ do
+  array <- toArray program
+  mapM_ (uncurry $ writeArray array) patches
+  elems <$> unsafeFreezeSTUArray array
+
 -- NOTE: See `https://hackage.haskell.org/package/array-0.5.4.0/docs/src/Data.Array.ST.html#runSTUArray`
 run :: Vm -> Vm
-run vm@(Vm program patches state@(VmState alive _ _ _)) =
+run vm@(Vm program state@(VmState alive _ _ _)) =
   if alive
     then runST $ do
-      array <- newListArray (0, length program - 1) program
-      mapM_ (uncurry $ writeArray array) patches
+      array <- toArray program
       state' <- loop array state
-      program' <- elems <$> unsafeFreezeSTUArray array
-      return $ Vm program' [] state'
+      (`Vm` state') . elems <$> unsafeFreezeSTUArray array
     else vm
