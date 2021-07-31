@@ -10,13 +10,15 @@ import Data.Text.IO (readFile)
 import Data.Text.Read (decimal, signed)
 import System.Environment (getArgs)
 import Test (Loc (..), test)
-import Vm (Vm (..), run)
+import Vm (Vm (..), VmState (..), newState, run)
 import Prelude hiding (readFile)
 
 chain :: [Int] -> [Int] -> Int
 chain xs = foldl' f 0
   where
-    f in1 in0 = head $ getOutput $ run $ Vm xs [] [in0, in1] []
+    f in1 in0 =
+      head $
+        getOutput $ getState $ run $ Vm xs [] (VmState True 0 [in0, in1] [])
 
 #define TEST test (Loc (__FILE__, __LINE__))
 
@@ -116,13 +118,18 @@ tests = do
     )
     65210
   where
-    f0 = getProgram . run . (\xs -> Vm xs [] [] [])
-    f1 = head . getOutput . run . (\(xs, input) -> Vm xs [] input [])
+    f0 = getProgram . run . (\xs -> Vm xs [] newState)
+    f1 =
+      head
+        . getOutput
+        . getState
+        . run
+        . (\(xs, input) -> Vm xs [] (VmState True 0 input []))
 
 -- NOTE: See `https://adventofcode.com/2019/day/2`.
 solve2 :: [Int] -> IO ()
 solve2 xs = do
-  TEST (head $ getProgram $ run (Vm xs [(1, 12), (2, 2)] [] [])) 9706670
+  TEST (head $ getProgram $ run (Vm xs [(1, 12), (2, 2)] newState)) 9706670
   TEST
     ( fst $
         head $
@@ -130,7 +137,7 @@ solve2 xs = do
             map
               ( \(p0, p1) ->
                   ( (100 * p0) + p1,
-                    head $ getProgram $ run (Vm xs [(1, p0), (2, p1)] [] [])
+                    head $ getProgram $ run (Vm xs [(1, p0), (2, p1)] newState)
                   )
               )
               (liftA2 (,) [0 .. 99] [0 .. 99])
@@ -140,8 +147,12 @@ solve2 xs = do
 -- NOTE: See `https://adventofcode.com/2019/day/5`.
 solve5 :: [Int] -> IO ()
 solve5 xs = do
-  TEST (getOutput $ run $ Vm xs [] [1] []) [5821753, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-  TEST (getOutput $ run $ Vm xs [] [5] []) [11956381]
+  TEST
+    (f $ Vm xs [] (VmState True 0 [1] []))
+    [5821753, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  TEST (f $ Vm xs [] (VmState True 0 [5] [])) [11956381]
+  where
+    f = getOutput . getState . run
 
 -- NOTE: See `https://adventofcode.com/2019/day/7`.
 solve7 :: [Int] -> IO ()

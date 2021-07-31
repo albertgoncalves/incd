@@ -13,12 +13,21 @@ import Data.Array.MArray
     writeArray,
   )
 
-data Vm = Vm
-  { getProgram :: [Int],
-    getPatches :: [(Int, Int)],
+data VmState = VmState
+  { getAlive :: Bool,
+    getIndex :: Int,
     getInput :: [Int],
     getOutput :: [Int]
   }
+
+data Vm = Vm
+  { getProgram :: [Int],
+    getPatches :: [(Int, Int)],
+    getState :: VmState
+  }
+
+newState :: VmState
+newState = VmState True 0 [] []
 
 readVal :: (MArray a Int m) => a Int Int -> Int -> Int -> m Int
 readVal array 0 = readArray array <=< readArray array
@@ -29,8 +38,8 @@ readDst :: (MArray a Int m) => a Int Int -> Int -> Int -> m Int
 readDst array 0 = readArray array
 readDst _ _ = undefined
 
-loop :: (MArray a Int m) => a Int Int -> [Int] -> [Int] -> Int -> m [Int]
-loop array input output i = do
+loop :: (MArray a Int m) => a Int Int -> VmState -> m VmState
+loop array (VmState _ i input output) = do
   x <- readArray array i
   let m0 = (x `div` 100) `mod` 10
       m1 = (x `div` 1000) `mod` 10
@@ -41,34 +50,34 @@ loop array input output i = do
       val1 <- readVal array m1 (i + 2)
       dst <- readDst array m2 (i + 3)
       writeArray array dst (val0 + val1)
-      loop array input output (i + 4)
+      loop array (VmState True (i + 4) input output)
     2 -> do
       val0 <- readVal array m0 (i + 1)
       val1 <- readVal array m1 (i + 2)
       dst <- readDst array m2 (i + 3)
       writeArray array dst (val0 * val1)
-      loop array input output (i + 4)
+      loop array (VmState True (i + 4) input output)
     3 -> case input of
       (val : input') -> do
         dst <- readDst array m0 (i + 1)
         writeArray array dst val
-        loop array input' output (i + 2)
-      _ -> undefined
+        loop array (VmState True (i + 2) input' output)
+      [] -> return $ VmState True i [] output
     4 -> do
       val <- readVal array m0 (i + 1)
-      loop array input (val : output) (i + 2)
+      loop array (VmState True (i + 2) input (val : output))
     5 -> do
       val0 <- readVal array m0 (i + 1)
       val1 <- readVal array m1 (i + 2)
       if val0 /= 0
-        then loop array input output val1
-        else loop array input output (i + 3)
+        then loop array (VmState True val1 input output)
+        else loop array (VmState True (i + 3) input output)
     6 -> do
       val0 <- readVal array m0 (i + 1)
       val1 <- readVal array m1 (i + 2)
       if val0 == 0
-        then loop array input output val1
-        else loop array input output (i + 3)
+        then loop array (VmState True val1 input output)
+        else loop array (VmState True (i + 3) input output)
     7 -> do
       val0 <- readVal array m0 (i + 1)
       val1 <- readVal array m1 (i + 2)
@@ -77,7 +86,7 @@ loop array input output i = do
         if val0 < val1
           then 1
           else 0
-      loop array input output (i + 4)
+      loop array (VmState True (i + 4) input output)
     8 -> do
       val0 <- readVal array m0 (i + 1)
       val1 <- readVal array m1 (i + 2)
@@ -86,18 +95,21 @@ loop array input output i = do
         if val0 == val1
           then 1
           else 0
-      loop array input output (i + 4)
-    99 -> return output
+      loop array (VmState True (i + 4) input output)
+    99 -> return $ VmState False i input output
     _ -> undefined
 
 -- NOTE: See `https://hackage.haskell.org/package/array-0.5.4.0/docs/src/Data.Array.ST.html#runSTUArray`
 run :: Vm -> Vm
-run (Vm program patches input output) = Vm (elems program') [] [] output''
+run vm@(Vm program patches state@(VmState alive _ _ _)) =
+  if alive
+    then vm'
+    else vm
   where
-    (program', output'') =
+    vm' =
       runST $ do
         array <- newListArray (0, length program - 1) program
         mapM_ (uncurry $ writeArray array) patches
-        output' <- loop array input output 0
-        array' <- unsafeFreezeSTUArray array
-        return (array', output')
+        state' <- loop array state
+        program' <- elems <$> unsafeFreezeSTUArray array
+        return $ Vm program' [] state'
