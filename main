@@ -43,5 +43,5 @@ done
         -Wunused-type-patterns
     )
     ghc "${flags[@]}" -o "$WD/bin/main" "$WD/src/Main.hs"
-    time "$WD/bin/main" "$WD/data/02.txt" "$WD/data/05.txt"
+    time "$WD/bin/main" "$WD/data/02.txt" "$WD/data/05.txt" "$WD/data/07.txt"
 )
