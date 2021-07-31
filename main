@@ -35,7 +35,7 @@ done
         -Widentities
         -Wincomplete-record-updates
         -Wincomplete-uni-patterns
-        -with-rtsopts "-pa"
+        "-with-rtsopts -pa"
         -Wmonomorphism-restriction
         -Wpartial-fields
         -Wredundant-constraints
