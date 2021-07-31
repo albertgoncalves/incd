@@ -103,13 +103,10 @@ loop array (VmState _ i input output) = do
 run :: Vm -> Vm
 run vm@(Vm program patches state@(VmState alive _ _ _)) =
   if alive
-    then vm'
+    then runST $ do
+      array <- newListArray (0, length program - 1) program
+      mapM_ (uncurry $ writeArray array) patches
+      state' <- loop array state
+      program' <- elems <$> unsafeFreezeSTUArray array
+      return $ Vm program' [] state'
     else vm
-  where
-    vm' =
-      runST $ do
-        array <- newListArray (0, length program - 1) program
-        mapM_ (uncurry $ writeArray array) patches
-        state' <- loop array state
-        program' <- elems <$> unsafeFreezeSTUArray array
-        return $ Vm program' [] state'

@@ -25,8 +25,7 @@ appendInput (VmState alive index input output) in1 =
   VmState alive index (input ++ [in1]) output
 
 chain1 :: [Int] -> [Int] -> Int
-chain1 xs inputs =
-  loop (map (\in0 -> Vm xs [] (VmState True 0 [in0] [])) inputs) 0
+chain1 xs inputs = loop (map (Vm xs [] . appendInput newState) inputs) 0
   where
     loop :: [Vm] -> Int -> Int
     loop ((Vm program _ state) : vms) in1 =
