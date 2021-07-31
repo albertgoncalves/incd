@@ -29,6 +29,10 @@ data Vm = Vm
 newState :: VmState
 newState = VmState True 0 [] []
 
+appendInput :: VmState -> Int -> VmState
+appendInput (VmState alive index input output) in1 =
+  VmState alive index (input ++ [in1]) output
+
 readVal :: (MArray a Int m) => a Int Int -> Int -> Int -> m Int
 readVal array 0 = readArray array <=< readArray array
 readVal array 1 = readArray array

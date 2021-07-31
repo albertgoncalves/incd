@@ -10,7 +10,7 @@ import Data.Text.IO (readFile)
 import Data.Text.Read (decimal, signed)
 import System.Environment (getArgs)
 import Test (Loc (..), test)
-import Vm (Vm (..), VmState (..), newState, run)
+import Vm (Vm (..), VmState (..), appendInput, newState, run)
 import Prelude hiding (readFile)
 
 chain0 :: [Int] -> [Int] -> Int
@@ -19,10 +19,6 @@ chain0 xs = foldl' f 0
     f in1 in0 =
       head $
         getOutput $ getState $ run $ Vm xs [] (VmState True 0 [in0, in1] [])
-
-appendInput :: VmState -> Int -> VmState
-appendInput (VmState alive index input output) in1 =
-  VmState alive index (input ++ [in1]) output
 
 chain1 :: [Int] -> [Int] -> Int
 chain1 xs inputs = loop (map (Vm xs [] . appendInput newState) inputs) 0
