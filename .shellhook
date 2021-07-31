@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+export WD=$PWD
+
+alias ormolu="ormolu -m inplace"
