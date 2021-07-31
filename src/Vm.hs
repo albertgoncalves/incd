@@ -7,12 +7,7 @@ import Control.Monad ((<=<))
 import Control.Monad.ST (runST)
 import Data.Array.Base (unsafeFreezeSTUArray)
 import Data.Array.IArray (elems)
-import Data.Array.MArray
-  ( MArray,
-    newListArray,
-    readArray,
-    writeArray,
-  )
+import Data.Array.MArray (MArray, newListArray, readArray, writeArray)
 
 data VmState = VmState
   { getAlive :: Bool,
