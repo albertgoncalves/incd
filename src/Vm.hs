@@ -107,7 +107,7 @@ patch program patches = runST $ do
   mapM_ (uncurry $ writeArray array) patches
   elems <$> unsafeFreezeSTUArray array
 
--- NOTE: See `https://hackage.haskell.org/package/array-0.5.4.0/docs/src/Data.Array.ST.html#runSTUArray`
+-- NOTE: See `https://hackage.haskell.org/package/array-0.5.4.0/docs/src/Data.Array.ST.html#runSTUArray`.
 run :: Vm -> Vm
 run vm@(Vm program state@(VmState alive _ _ _)) =
   if alive
