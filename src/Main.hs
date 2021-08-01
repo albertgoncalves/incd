@@ -20,7 +20,7 @@ chain0 program = foldl' f 0
       head $
         getOutput $
           getState $
-            run (length program - 1) $
+            run (length program) $
               Vm program $
                 foldl' appendInput newState [in0, in1]
 
@@ -29,7 +29,7 @@ chain1 program inputs = loop (map (Vm program . appendInput newState) inputs) 0
   where
     loop :: [Vm] -> Int -> Int
     loop ((Vm program' state) : vms) in1 =
-      case run (length program - 1) $ Vm program' $ appendInput state in1 of
+      case run (length program) $ Vm program' $ appendInput state in1 of
         (Vm _ (VmState False _ _ _ [out0])) ->
           case vms of
             [] -> out0
@@ -43,12 +43,12 @@ chain1 program inputs = loop (map (Vm program . appendInput newState) inputs) 0
 
 tests :: IO ()
 tests = do
-  TEST (f0 4 [1, 0, 0, 0, 99]) [2, 0, 0, 0, 99]
-  TEST (f0 4 [2, 3, 0, 3, 99]) [2, 3, 0, 6, 99]
-  TEST (f0 5 [2, 4, 4, 5, 99, 0]) [2, 4, 4, 5, 99, 9801]
-  TEST (f0 8 [1, 1, 1, 4, 99, 5, 6, 0, 99]) [30, 1, 1, 4, 2, 5, 6, 0, 99]
-  TEST (f0 4 [1002, 4, 3, 4, 33]) [1002, 4, 3, 4, 99]
-  TEST (f0 4 [1101, 100, -1, 4, 0]) [1101, 100, -1, 4, 99]
+  TEST (f0 5 [1, 0, 0, 0, 99]) [2, 0, 0, 0, 99]
+  TEST (f0 5 [2, 3, 0, 3, 99]) [2, 3, 0, 6, 99]
+  TEST (f0 6 [2, 4, 4, 5, 99, 0]) [2, 4, 4, 5, 99, 9801]
+  TEST (f0 9 [1, 1, 1, 4, 99, 5, 6, 0, 99]) [30, 1, 1, 4, 2, 5, 6, 0, 99]
+  TEST (f0 5 [1002, 4, 3, 4, 33]) [1002, 4, 3, 4, 99]
+  TEST (f0 5 [1101, 100, -1, 4, 0]) [1101, 100, -1, 4, 99]
   TEST (f1 [3, 0, 4, 0, 99] [1234]) [1234]
   TEST (f1 [3, 9, 8, 9, 10, 9, 4, 9, 99, -1, 8] [8]) [1]
   TEST (f1 [3, 9, 8, 9, 10, 9, 4, 9, 99, -1, 8] [7]) [0]
@@ -264,7 +264,7 @@ tests = do
     f1 program input =
       getOutput $
         getState $
-          run (length program - 1) $ Vm program $ VmState True 0 0 input []
+          run (length program) $ Vm program $ VmState True 0 0 input []
 
 -- NOTE: See `https://adventofcode.com/2019/day/2`.
 solve2 :: [Int] -> IO ()
@@ -283,7 +283,7 @@ solve2 program = do
     f =
       head
         . getProgram
-        . run (length program - 1)
+        . run (length program)
         . (`Vm` newState)
         . patch program
 
@@ -296,7 +296,7 @@ solve5 program = do
     f in0 =
       getOutput $
         getState $
-          run (length program - 1) $ Vm program $ appendInput newState in0
+          run (length program) $ Vm program $ appendInput newState in0
 
 -- NOTE: See `https://adventofcode.com/2019/day/7`.
 solve7 :: [Int] -> IO ()
@@ -312,7 +312,7 @@ solve9 program = do
   TEST (f 1) [4234906522]
   TEST (f 2) [60962]
   where
-    f = getOutput . getState . run 4323 . Vm program . appendInput newState
+    f = getOutput . getState . run 1077 . Vm program . appendInput newState
 
 intoProgram :: Text -> [Int]
 intoProgram x = assert (null $ lefts xs) $ rights xs

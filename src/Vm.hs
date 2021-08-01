@@ -105,11 +105,11 @@ loop array (VmState _ i base input output) = do
     _ -> undefined
 
 toArray :: (MArray a Int m) => Int -> [Int] -> m (a Int Int)
-toArray cap = newListArray (0, cap)
+toArray cap = newListArray (0, cap - 1)
 
 patch :: [Int] -> [(Int, Int)] -> [Int]
 patch program patches = runST $ do
-  array <- toArray (length program - 1) program
+  array <- toArray (length program) program
   mapM_ (uncurry $ writeArray array) patches
   elems <$> unsafeFreezeSTUArray array
 
