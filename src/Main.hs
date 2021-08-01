@@ -2,8 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 import Control.Applicative (liftA2)
-import Control.Exception (assert)
-import Data.Either (lefts, rights)
+import Data.Either (rights)
 import Data.List (foldl', permutations)
 import Data.Text (Text, splitOn)
 import Data.Text.IO (readFile)
@@ -315,10 +314,7 @@ solve9 program = do
     f = getOutput . getState . run 1077 . Vm program . appendInput newState
 
 intoProgram :: Text -> [Int]
-intoProgram x = assert (null $ lefts xs) $ rights xs
-  where
-    xs :: [Either String Int]
-    xs = map (fmap fst . signed decimal) $ splitOn "," x
+intoProgram = rights . map (fmap fst . signed decimal) . splitOn ","
 
 main :: IO ()
 main = do

@@ -26,6 +26,7 @@ done
         -fprof-auto-top
         -funbox-strict-fields
         "-i$WD/src"
+        -O3
         "-optl -fuse-ld=lld"
         "-outputdir $WD/build"
         -prof
