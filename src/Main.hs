@@ -14,24 +14,24 @@ import Vm (Vm (..), VmState (..), appendInput, newState, patch, run)
 import Prelude hiding (readFile)
 
 chain0 :: [Int] -> [Int] -> Int
-chain0 xs = foldl' f 0
+chain0 program = foldl' f 0
   where
     f in1 in0 =
       head $
-        getOutput $ getState $ run $ Vm xs (VmState True 0 [in0, in1] [])
+        getOutput $ getState $ run $ Vm program (VmState True 0 [in0, in1] [])
 
 chain1 :: [Int] -> [Int] -> Int
-chain1 xs inputs = loop (map (Vm xs . appendInput newState) inputs) 0
+chain1 program inputs = loop (map (Vm program . appendInput newState) inputs) 0
   where
     loop :: [Vm] -> Int -> Int
-    loop ((Vm program state) : vms) in1 =
-      case run $ Vm program $ appendInput state in1 of
+    loop ((Vm program' state) : vms) in1 =
+      case run $ Vm program' $ appendInput state in1 of
         (Vm _ (VmState False _ _ [out0])) ->
           case vms of
             [] -> out0
             vms' -> loop vms' out0
-        (Vm program' (VmState True index' input' [out0])) ->
-          loop (vms ++ [Vm program' $ VmState True index' input' []]) out0
+        (Vm program'' (VmState True index' input' [out0])) ->
+          loop (vms ++ [Vm program'' $ VmState True index' input' []]) out0
         _ -> undefined
     loop _ _ = undefined
 
@@ -237,45 +237,39 @@ tests = do
         . getOutput
         . getState
         . run
-        . (\(xs, input) -> Vm xs (VmState True 0 input []))
+        . (\(program, input) -> Vm program (VmState True 0 input []))
 
 -- NOTE: See `https://adventofcode.com/2019/day/2`.
 solve2 :: [Int] -> IO ()
-solve2 xs = do
-  TEST
-    (head $ getProgram $ run (Vm (patch xs [(1, 12), (2, 2)]) newState))
-    9706670
+solve2 program = do
+  TEST (f [(1, 12), (2, 2)]) 9706670
   TEST
     ( fst $
         head $
           dropWhile ((/= 19690720) . snd) $
             map
-              ( \(p0, p1) ->
-                  ( (100 * p0) + p1,
-                    head $
-                      getProgram $
-                        run (Vm (patch xs [(1, p0), (2, p1)]) newState)
-                  )
-              )
+              (\(p0, p1) -> ((100 * p0) + p1, f [(1, p0), (2, p1)]))
               (liftA2 (,) [0 .. 99] [0 .. 99])
     )
     2552
+  where
+    f = head . getProgram . run . (`Vm` newState) . patch program
 
 -- NOTE: See `https://adventofcode.com/2019/day/5`.
 solve5 :: [Int] -> IO ()
-solve5 xs = do
-  TEST
-    (f $ Vm xs (VmState True 0 [1] []))
-    [5821753, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-  TEST (f $ Vm xs (VmState True 0 [5] [])) [11956381]
+solve5 program = do
+  TEST (f 1) [5821753, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  TEST (f 5) [11956381]
   where
-    f = getOutput . getState . run
+    f in0 = getOutput $ getState $ run $ Vm program $ VmState True 0 [in0] []
 
 -- NOTE: See `https://adventofcode.com/2019/day/7`.
 solve7 :: [Int] -> IO ()
-solve7 xs = do
-  TEST (maximum $ map (chain0 xs) $ permutations [0 .. 4]) 199988
-  TEST (maximum $ map (chain1 xs) $ permutations [5 .. 9]) 17519904
+solve7 program = do
+  TEST (f chain0 [0 .. 4]) 199988
+  TEST (f chain1 [5 .. 9]) 17519904
+  where
+    f c = maximum . map (c program) . permutations
 
 intoProgram :: Text -> [Int]
 intoProgram x = assert (null $ lefts xs) $ rights xs
