@@ -249,7 +249,7 @@ solve2 program = do
           dropWhile ((/= 19690720) . snd) $
             map
               (\(p0, p1) -> ((100 * p0) + p1, f [(1, p0), (2, p1)]))
-              (liftA2 (,) [0 .. 99] [0 .. 99])
+              (let xs = [0 .. 99] :: [Int] in liftA2 (,) xs xs)
     )
     2552
   where
