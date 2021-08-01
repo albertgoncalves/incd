@@ -46,6 +46,7 @@ done
         "$WD/data/02.txt"
         "$WD/data/05.txt"
         "$WD/data/07.txt"
+        "$WD/data/09.txt"
     )
     ghc "${flags[@]}" -o "$WD/bin/main" "$WD/src/Main.hs"
     time "$WD/bin/main" "${files[@]}"
