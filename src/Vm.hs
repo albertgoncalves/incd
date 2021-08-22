@@ -1,124 +1,107 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE Strict #-}
-
 module Vm where
 
-import Control.Monad ((<=<))
-import Control.Monad.ST (runST)
-import Data.Array.Base (unsafeFreezeSTUArray)
-import Data.Array.IArray (elems)
-import Data.Array.MArray (MArray, newListArray, readArray, writeArray)
+import Data.IntMap.Lazy (IntMap, findWithDefault, fromList, insert, union)
 
 data VmState = VmState
-  { getAlive :: Bool,
-    getIndex :: Int,
-    getBase :: Int,
+  { getAlive :: !Bool,
+    getIndex :: !Int,
+    getBase :: !Int,
     getInput :: [Int],
     getOutput :: [Int]
   }
 
 data Vm = Vm
-  { getProgram :: [Int],
-    getState :: VmState
+  { getProgram :: IntMap Int,
+    getState :: !VmState
   }
 
 newState :: VmState
 newState = VmState True 0 0 [] []
 
-appendInput :: VmState -> Int -> VmState
-appendInput (VmState alive index base input output) in1 =
-  VmState alive index base (input ++ [in1]) output
+withInput :: VmState -> [Int] -> VmState
+withInput (VmState alive index base in0 output) in1 =
+  VmState alive index base (in0 ++ in1) output
 
-readVal :: (MArray a Int m) => a Int Int -> Int -> Int -> Int -> m Int
-readVal array 0 _ = readArray array <=< readArray array
-readVal array 1 _ = readArray array
-readVal array 2 base = readArray array . (base +) <=< readArray array
+(!) :: IntMap Int -> Int -> Int
+(!) m k = findWithDefault 0 k m
+
+readVal :: IntMap Int -> Int -> Int -> Int -> Int
+readVal program 0 _ = (program !) . (program !)
+readVal program 1 _ = (program !)
+readVal program 2 base = (program !) . (base +) . (program !)
 readVal _ _ _ = undefined
 
-readDst :: (MArray a Int m) => a Int Int -> Int -> Int -> Int -> m Int
-readDst array 0 _ = readArray array
-readDst array 2 base = fmap (base +) . readArray array
+readDst :: IntMap Int -> Int -> Int -> Int -> Int
+readDst program 0 _ = (program !)
+readDst program 2 base = (base +) . (program !)
 readDst _ _ _ = undefined
 
-loop :: (MArray a Int m) => a Int Int -> VmState -> m VmState
-loop array (VmState _ i base input output) = do
-  x <- readArray array i
-  let m0 = (x `div` 100) `mod` 10
-      m1 = (x `div` 1000) `mod` 10
-      m2 = (x `div` 10000) `mod` 10
+step :: Vm -> Vm
+step (Vm program (VmState alive i base input output)) =
   case x `mod` 100 of
-    1 -> do
-      val0 <- readVal array m0 base (i + 1)
-      val1 <- readVal array m1 base (i + 2)
-      dst <- readDst array m2 base (i + 3)
-      writeArray array dst (val0 + val1)
-      loop array $ VmState True (i + 4) base input output
-    2 -> do
-      val0 <- readVal array m0 base (i + 1)
-      val1 <- readVal array m1 base (i + 2)
-      dst <- readDst array m2 base (i + 3)
-      writeArray array dst (val0 * val1)
-      loop array $ VmState True (i + 4) base input output
-    3 -> case input of
-      (val : input') -> do
-        dst <- readDst array m0 base (i + 1)
-        writeArray array dst val
-        loop array $ VmState True (i + 2) base input' output
-      [] -> return $ VmState True i base [] output
-    4 -> do
-      val <- readVal array m0 base (i + 1)
-      loop array $ VmState True (i + 2) base input (val : output)
-    5 -> do
-      val0 <- readVal array m0 base (i + 1)
-      val1 <- readVal array m1 base (i + 2)
-      if val0 /= 0
-        then loop array $ VmState True val1 base input output
-        else loop array $ VmState True (i + 3) base input output
-    6 -> do
-      val0 <- readVal array m0 base (i + 1)
-      val1 <- readVal array m1 base (i + 2)
-      if val0 == 0
-        then loop array $ VmState True val1 base input output
-        else loop array $ VmState True (i + 3) base input output
-    7 -> do
-      val0 <- readVal array m0 base (i + 1)
-      val1 <- readVal array m1 base (i + 2)
-      dst <- readDst array m2 base (i + 3)
-      writeArray array dst $
-        if val0 < val1
-          then 1
-          else 0
-      loop array $ VmState True (i + 4) base input output
-    8 -> do
-      val0 <- readVal array m0 base (i + 1)
-      val1 <- readVal array m1 base (i + 2)
-      dst <- readDst array m2 base (i + 3)
-      writeArray array dst $
-        if val0 == val1
-          then 1
-          else 0
-      loop array $ VmState True (i + 4) base input output
-    9 -> do
-      val <- readVal array m0 base (i + 1)
-      loop array $ VmState True (i + 2) (base + val) input output
-    99 -> return $ VmState False i base input output
+    1 ->
+      let val0 = readVal program m0 base (i + 1)
+          val1 = readVal program m1 base (i + 2)
+          dst = readDst program m2 base (i + 3)
+       in Vm
+            (insert dst (val0 + val1) program)
+            (VmState alive (i + 4) base input output)
+    2 ->
+      let val0 = readVal program m0 base (i + 1)
+          val1 = readVal program m1 base (i + 2)
+          dst = readDst program m2 base (i + 3)
+       in Vm
+            (insert dst (val0 * val1) program)
+            (VmState alive (i + 4) base input output)
+    3 ->
+      let dst = readDst program m0 base (i + 1)
+       in Vm
+            (insert dst (head input) program)
+            (VmState alive (i + 2) base (tail input) output)
+    4 ->
+      let val = readVal program m0 base (i + 1)
+       in Vm program $ VmState alive (i + 2) base input (val : output)
+    5 ->
+      let val0 = readVal program m0 base (i + 1)
+          val1 = readVal program m1 base (i + 2)
+       in Vm program $
+            if val0 /= 0
+              then VmState alive val1 base input output
+              else VmState alive (i + 3) base input output
+    6 ->
+      let val0 = readVal program m0 base (i + 1)
+          val1 = readVal program m1 base (i + 2)
+       in Vm program $
+            if val0 == 0
+              then VmState alive val1 base input output
+              else VmState alive (i + 3) base input output
+    7 ->
+      let val0 = readVal program m0 base (i + 1)
+          val1 = readVal program m1 base (i + 2)
+          dst = readDst program m2 base (i + 3)
+       in Vm
+            (insert dst (if val0 < val1 then 1 else 0) program)
+            (VmState alive (i + 4) base input output)
+    8 ->
+      let val0 = readVal program m0 base (i + 1)
+          val1 = readVal program m1 base (i + 2)
+          dst = readDst program m2 base (i + 3)
+       in Vm
+            (insert dst (if val0 == val1 then 1 else 0) program)
+            (VmState alive (i + 4) base input output)
+    9 ->
+      let val = readVal program m0 base (i + 1)
+       in Vm program $ VmState alive (i + 2) (base + val) input output
+    99 -> Vm program $ VmState False i base input output
     _ -> undefined
+  where
+    x = program ! i
+    m0 = (x `div` 100) `mod` 10
+    m1 = (x `div` 1000) `mod` 10
+    m2 = (x `div` 10000) `mod` 10
 
-toArray :: (MArray a Int m) => Int -> [Int] -> m (a Int Int)
-toArray cap = newListArray (0, cap - 1)
+patch :: IntMap Int -> [(Int, Int)] -> IntMap Int
+patch program patches = fromList patches `union` program
 
-patch :: [Int] -> [(Int, Int)] -> [Int]
-patch program patches = runST $ do
-  array <- toArray (length program) program
-  mapM_ (uncurry $ writeArray array) patches
-  elems <$> unsafeFreezeSTUArray array
-
--- NOTE: See `https://hackage.haskell.org/package/array-0.5.4.0/docs/src/Data.Array.ST.html#runSTUArray`.
-run :: Int -> Vm -> Vm
-run cap vm@(Vm program state@(VmState alive _ _ _ _)) =
-  if alive
-    then runST $ do
-      array <- toArray cap program
-      state' <- loop array state
-      (`Vm` state') . elems <$> unsafeFreezeSTUArray array
-    else vm
+run :: Vm -> Vm
+run = head . dropWhile (getAlive . getState) . iterate step
